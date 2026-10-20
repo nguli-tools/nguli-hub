@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nguli Scanner Pro</title>
+    <!-- Tailwind CSS untuk Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome untuk Icon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Pustaka Eksternal -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script> <!-- Untuk ekspor JPG massal (ZIP) -->
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Slate 900 */
+            color: white;
+            overscroll-behavior-y: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-glass {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        
+        /* Area Sentuh Crop Super Besar */
+        .corner-handle {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background-color: transparent;
+            transform: translate(-50%, -50%);
+            touch-action: none;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .corner-handle::after {
+            content: '';
+            width: 24px;
+            height: 24px;
+            background-color: #3b82f6; 
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 12px rgba(0,0,0,0.8);
+            transition: transform 0.1s, background-color 0.1s, margin-bottom 0.1s;
+        }
+
+        .corner-handle:active::after {
+            transform: scale(1.4);
+            background-color: #60a5fa;
+            margin-bottom: 25px; /* Mengangkat titik sedikit saat disentuh (Anti Fat-finger) */
+        }
+
+        #crop-svg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 40;
+        }
+
+        /* Styling Custom Slider Range (Range Input) */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            margin-top: -8px;
+            border: 2px solid white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #475569;
+            border-radius: 4px;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        body[data-theme="light"] { background-color: #f8fafc; color: #0f172a; }
+        body[data-theme="light"] .glass-panel { background: rgba(255, 255, 255, 0.95); border-bottom: 1px solid rgba(0,0,0,0.1); border-top: none; }
+        body[data-theme="light"] .modal-glass { background: rgba(255, 255, 255, 0.98); border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+        body[data-theme="light"] .bg-gray-800, 
+        body[data-theme="light"] .bg-slate-800,
+        body[data-theme="light"] .bg-gray-900 { background-color: #ffffff !important; border-color: #e2e8f0 !important; color: #0f172a; }
+        body[data-theme="light"] .text-gray-400, 
+        body[data-theme="light"] .text-gray-300 { color: #64748b !important; }
+        body[data-theme="light"] .border-gray-600, 
+        body[data-theme="light"] .border-slate-600,
+        body[data-theme="light"] .border-slate-700 { border-color: #cbd5e1 !important; }
+        body[data-theme="light"] input[type="text"],
+        body[data-theme="light"] select { background-color: #f8fafc !important; color: #0f172a !important; border-color: #cbd5e1 !important; }
+        
+        /* Auto invert teks putih menjadi gelap di mode Light (Kecuali tombol warna solid & logo) */
+        body[data-theme="light"] .text-white:not(.bg-blue-600):not(.bg-red-500):not(.keep-white) { color: #0f172a !important; }
+        body[data-theme="light"] input[type=range]::-webkit-slider-runnable-track { background: #cbd5e1 !important; }
+        body[data-theme="light"] #empty-gallery .bg-gray-800 { background-color: #f1f5f9 !important; border-color: #e2e8f0 !important; }
+    </style>
+</head>
+<body class="fixed inset-0 w-full overflow-hidden flex flex-col select-none" data-theme="dark">
+
+    <!-- ============================================== -->
+    <!-- VIEW 1: CAMERA                                 -->
+    <!-- ============================================== -->
+    <div id="view-camera" class="absolute inset-0 flex flex-col z-10 transition-opacity duration-300 bg-black">
+        <div class="h-16 flex items-center justify-between px-4 z-20 glass-panel flex-shrink-0">
+            
+            <div class="flex items-center gap-3 text-blue-500">
+                <!-- Logo Nguli -->
+                <div class="keep-white relative flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 text-white shadow-lg shadow-slate-900/20 flex-shrink-0">
+                    <!-- Ikon Helm Pekerja -->
+                    <i class="fa-solid fa-helmet-safety text-xl mb-0.5"></i>
+                    <!-- Aksen Titik Merah (Titik Semangat/Status) -->
+                    <div class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white"></div>
+                </div>
+                <div class="flex flex-col leading-none">
+                    <span class="text-xl font-black tracking-wide text-blue-500">Nguli<span class="text-white">Scan</span></span>
+                    <span class="text-[9px] text-blue-400 uppercase tracking-widest mt-0.5 font-bold">Pro Edition</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button onclick="toggleTheme()" class="w-10 h-10 rounded-full bg-gray-800 text-gray-300 flex items-center justify-center active:scale-90 transition border border-gray-600 shadow-lg">
+                    <i id="theme-icon" class="fa-solid fa-moon"></i>
+                </button>
+                <button onclick="toggleFlash()" class="w-10 h-10 rounded-full bg-gray-800 text-white flex items-center justify-center active:scale-90 transition border border-gray-600 shadow-lg">
+                    <i id="flash-icon" class="fa-solid fa-bolt"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="relative flex-1 bg-black overflow-hidden flex items-center justify-center">
+            <video id="camera-stream" class="min-w-full min-h-full object-cover" autoplay playsinline></video>
+            
+            <!-- Reticle Target -->
+            <div class="absolute w-64 h-80 border-2 border-blue-400/50 rounded-xl z-10 pointer-events-none flex items-center justify-center shadow-[0_0_0_9999px_rgba(0,0,0,0.3)]">
+                <div class="w-2 h-2 bg-blue-400 rounded-full shadow-[0_0_10px_rgba(59,130,246,1)]"></div>
+            </div>
+            <div id="flash-overlay" class="absolute inset-0 bg-white opacity-0 pointer-events-none z-30 transition-opacity duration-100"></div>
+        </div>
+
+        <!-- PERBAIKAN: Tinggi panel ditambah dan diberi padding bawah (pb-6) agar tombol naik menjauhi batas bawah HP -->
+        <div class="h-[130px] glass-panel flex flex-col justify-center pb-6 z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] flex-shrink-0 w-full">
+            <div class="flex justify-evenly items-center px-6">
+                <!-- Ke Galeri -->
+                <button onclick="switchView('gallery')" class="relative w-14 h-14 bg-gray-800 rounded-2xl overflow-hidden border border-gray-600 active:scale-95 transition shadow-lg flex items-center justify-center group">
+                    <img id="gallery-thumb" src="" class="absolute inset-0 w-full h-full object-cover hidden">
+                    <i id="gallery-icon" class="fa-solid fa-layer-group text-gray-400 text-xl"></i>
+                    <span id="page-badge" class="absolute -top-2 -right-2 bg-blue-600 border-2 border-slate-900 text-white text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full hidden">0</span>
+                </button>
+                
+                <!-- Shutter (Buka Kamera Bawaan HP / Native Camera) -->
+                <input type="file" id="camera-upload" accept="image/*" capture="environment" class="hidden" onchange="handleFileUpload(event)">
+                <button onclick="document.getElementById('camera-upload').click()" class="relative w-[84px] h-[84px] rounded-full border-[3px] border-blue-400 flex items-center justify-center active:scale-90 transition transform shadow-[0_0_20px_rgba(59,130,246,0.4)] bg-blue-600">
+                    <i class="fa-solid fa-camera text-3xl text-white"></i>
+                </button>
+
+                <!-- Upload -->
+                <input type="file" id="file-upload" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
+                <button onclick="document.getElementById('file-upload').click()" class="w-14 h-14 bg-gray-800 rounded-2xl border border-gray-600 shadow-lg active:scale-95 transition flex items-center justify-center text-blue-400">
+                    <i class="fa-solid fa-image text-2xl"></i>
+                </button>
+            </div>
+            <div class="text-center text-[10px] text-gray-400 mt-3 font-medium tracking-widest uppercase"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Auto-Enhance & Perspective Aktif</div>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- VIEW 2: CROP & EDIT                            -->
+    <!-- ============================================== -->
+    <div id="view-crop" class="absolute inset-0 bg-slate-900 z-20 hidden flex-col">
+        <!-- Header Crop -->
+        <div class="h-16 flex items-center justify-between px-4 glass-panel shadow-md border-b border-slate-700 z-30">
+            <button onclick="switchView('camera')" class="px-4 py-2 bg-gray-800 text-gray-300 rounded-lg text-sm font-medium border border-gray-600"><i class="fa-solid fa-xmark"></i> Batal</button>
+            
+            <button onclick="rotateRawImage()" class="px-3 py-2 bg-gray-800 text-gray-300 rounded-lg text-sm font-medium border border-gray-600 flex items-center gap-2 active:bg-gray-700 transition" title="Putar Gambar">
+                <i class="fa-solid fa-rotate-right text-blue-400"></i> Putar
+            </button>
+
+            <button onclick="applyPerspectiveTransform()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold shadow-lg flex items-center gap-2 border border-blue-500">Lanjut <i class="fa-solid fa-check"></i></button>
+        </div>
+
+        <div class="flex-1 relative overflow-hidden bg-black flex items-center justify-center" id="crop-container">
+            <!-- Gambar diberi ID untuk live preview CSS Filter -->
+            <img id="crop-image" class="absolute pointer-events-none origin-center" src="">
+            
+            <svg id="crop-svg">
+                <defs>
+                    <mask id="crop-mask">
+                        <rect width="100%" height="100%" fill="white"/>
+                        <polygon id="mask-polygon" points="0,0 0,0 0,0 0,0" fill="black"/>
+                    </mask>
+                </defs>
+                <rect width="100%" height="100%" fill="rgba(0,0,0,0.7)" mask="url(#crop-mask)"/>
+                <polygon id="border-polygon" points="0,0 0,0 0,0 0,0" fill="rgba(59, 130, 246, 0.15)" stroke="#60a5fa" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+
+            <!-- Titik Sudut Draggable -->
+            <div id="handle-tl" class="corner-handle"></div>
+            <div id="handle-tr" class="corner-handle"></div>
+            <div id="handle-br" class="corner-handle"></div>
+            <div id="handle-bl" class="corner-handle"></div>
+
+            <!-- Kaca Pembesar -->
+            <div id="magnifier" class="absolute w-[100px] h-[100px] rounded-full border-4 border-blue-500 bg-gray-900 shadow-[0_0_20px_rgba(0,0,0,0.8)] z-[100] hidden pointer-events-none flex items-center justify-center overflow-hidden">
+                <div id="magnifier-img" class="absolute inset-0 bg-no-repeat"></div>
+                <div class="relative w-full h-full">
+                    <div class="absolute top-1/2 left-0 w-full h-[1px] bg-blue-400/80 -translate-y-1/2"></div>
+                    <div class="absolute top-0 left-1/2 w-[1px] h-full bg-blue-400/80 -translate-x-1/2"></div>
+                    <div class="absolute top-1/2 left-1/2 w-2 h-2 bg-red-500 rounded-full -translate-x-1/2 -translate-y-1/2 shadow-[0_0_5px_white]"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bottom Panel (Tabs) PERBAIKAN: Diberi padding bawah agar aman dari navigasi gestur HP -->
+        <div class="h-[140px] glass-panel flex flex-col justify-start items-center pt-3 px-4 pb-8 z-50 shadow-[0_-10px_20px_rgba(0,0,0,0.3)] w-full flex-shrink-0">
+            
+            <div class="flex gap-8 mb-4 border-b border-gray-600 pb-2">
+                <button onclick="toggleCropTab('filter')" id="tab-btn-filter" class="text-sm font-bold text-blue-400 transition-colors">Warna / Filter</button>
+                <button onclick="toggleCropTab('adjust')" id="tab-btn-adjust" class="text-sm font-medium text-gray-400 transition-colors">Pencahayaan</button>
+            </div>
+
+            <!-- Tab 1: Filters -->
+            <div id="tab-content-filter" class="flex gap-3 w-full justify-center">
+                <button onclick="applyFilter('none')" id="btn-filter-none" class="filter-btn px-6 py-2 rounded-xl border border-gray-500 text-sm text-gray-300 bg-gray-800 transition font-medium">Asli</button>
+                <button onclick="applyFilter('grayscale')" id="btn-filter-gray" class="filter-btn px-6 py-2 rounded-xl border border-gray-500 text-sm text-gray-300 bg-gray-800 transition font-medium">B&W</button>
+                <button onclick="applyFilter('magic')" id="btn-filter-magic" class="filter-btn px-6 py-2 rounded-xl border border-blue-500 text-sm text-blue-400 bg-blue-900/30 transition font-bold shadow-lg"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Enhance</button>
+            </div>
+
+            <!-- Tab 2: Adjust Sliders -->
+            <div id="tab-content-adjust" class="hidden flex-col gap-3 w-full max-w-md px-4">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-sun text-gray-400 w-5"></i>
+                    <input type="range" id="slider-bright" min="-100" max="100" value="0" oninput="updateLivePreview()">
+                    <span id="val-bright" class="text-xs text-gray-400 w-8 text-right">0</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-circle-half-stroke text-gray-400 w-5"></i>
+                    <input type="range" id="slider-contrast" min="-100" max="100" value="0" oninput="updateLivePreview()">
+                    <span id="val-contrast" class="text-xs text-gray-400 w-8 text-right">0</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- VIEW 3: GALLERY                                -->
+    <!-- ============================================== -->
+    <div id="view-gallery" class="absolute inset-0 bg-slate-900 z-20 hidden flex-col">
+        <div class="h-16 flex items-center justify-between px-4 glass-panel shadow-md border-b border-slate-700 z-30">
+            <button onclick="switchView('camera')" class="text-white px-2 py-2"><i class="fa-solid fa-chevron-left text-xl"></i></button>
+            <span class="font-bold text-lg">Dokumen (<span id="gallery-count">0</span>)</span>
+            <button onclick="openExportModal()" class="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-5 py-2 rounded-xl text-sm font-bold shadow-lg flex items-center gap-2 border border-blue-400">
+                <i class="fa-solid fa-download"></i> Simpan
+            </button>
+        </div>
+        
+        <div class="px-4 py-2 bg-slate-800 text-[11px] text-gray-400 flex justify-between items-center border-b border-slate-700 z-20">
+            <span><i class="fa-solid fa-grip-lines mr-1"></i> Tahan & geser untuk urutkan</span>
+            <span class="text-blue-400 font-medium">Resolusi Tinggi</span>
+        </div>
+
+        <!-- PERBAIKAN: Padding bottom (pb-32) diperbesar agar file terakhir tidak tertutup layar bawah -->
+        <div id="gallery-grid" class="flex-1 overflow-y-auto p-4 grid grid-cols-2 gap-4 items-start content-start pb-32">
+            <div id="empty-gallery" class="col-span-2 flex flex-col items-center justify-center h-full text-gray-500 mt-20">
+                <div class="w-24 h-24 bg-gray-800 rounded-full flex items-center justify-center mb-4 border border-gray-700 shadow-xl">
+                    <i class="fa-solid fa-folder-open text-4xl text-gray-400"></i>
+                </div>
+                <p class="font-medium text-gray-300 text-lg">Belum ada halaman</p>
+                <button onclick="switchView('camera')" class="mt-8 px-6 py-3 bg-blue-600 rounded-xl text-white font-medium shadow-lg border border-blue-500">
+                    <i class="fa-solid fa-camera mr-2"></i> Pindai Sekarang
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- MODAL EXPORT (PENGATURAN)                      -->
+    <!-- ============================================== -->
+    <div id="modal-export" class="absolute inset-0 bg-black/60 z-[200] hidden items-center justify-center p-4 backdrop-blur-sm">
+        <!-- PERBAIKAN: max-h-[85vh] agar modal tidak kepanjangan di HP layar kecil -->
+        <div class="modal-glass w-full max-w-sm rounded-2xl p-4 max-h-[85vh] overflow-y-auto no-scrollbar shadow-2xl flex flex-col gap-4 transform scale-95 transition-transform duration-200 mb-4" id="export-card">
+            
+            <div class="flex justify-between items-center border-b border-slate-600 pb-3">
+                <h3 class="font-bold text-lg text-white"><i class="fa-solid fa-file-export mr-2 text-blue-400"></i> Pengaturan Simpan</h3>
+                <button onclick="closeExportModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Nama File</label>
+                <input type="text" id="export-filename" class="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 transition-colors">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Format</label>
+                    <select id="export-format" class="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                        <option value="pdf">PDF Dokumen</option>
+                        <option value="jpg">Gambar (JPG/ZIP)</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Ukuran Kertas</label>
+                    <select id="export-size" class="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                        <option value="a4">A4 (Standar)</option>
+                        <option value="f4">F4 (Folio)</option>
+                        <option value="id">ID Card / KTP</option>
+                        <option value="asli">Sesuai Asli</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-1 pt-1">
+                <div class="flex justify-between">
+                    <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Kualitas Scan</label>
+                    <span id="quality-val" class="text-xs text-blue-400 font-bold">90%</span>
+                </div>
+                <input type="range" id="export-quality" min="1" max="100" value="90" oninput="document.getElementById('quality-val').innerText = this.value + '%'">
+                <p class="text-[10px] text-gray-500 mt-1">Turunkan slider untuk mengecilkan ukuran file (MB).</p>
+            </div>
+
+            <!-- MENU ADVANCED: WATERMARK -->
+            <div class="border-t border-slate-600 pt-3 mt-1">
+                <label class="flex items-center gap-2 text-sm font-semibold text-gray-300 cursor-pointer mb-2 active:scale-95 transition">
+                    <input type="checkbox" id="use-watermark" class="w-4 h-4 rounded text-blue-500 bg-slate-800 border-gray-600" onchange="toggleWatermarkOptions()">
+                    <span class="text-blue-400"><i class="fa-solid fa-shield-halved mr-1"></i> Tambahkan Watermark</span>
+                </label>
+                
+                <div id="watermark-options" class="hidden flex-col gap-3 pl-2 border-l-2 border-blue-500 ml-2 mt-3 animate-[fadeIn_0.2s_ease-out]">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Tipe</label>
+                            <select id="wm-type" class="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-2 py-2 text-xs focus:border-blue-500 outline-none" onchange="toggleWmType()">
+                                <option value="text">Teks Tanda Air</option>
+                                <option value="image">Gambar / Logo</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Posisi</label>
+                            <select id="wm-position" class="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-2 py-2 text-xs focus:border-blue-500 outline-none">
+                                <option value="center">Di Tengah</option>
+                                <option value="diagonal">Diagonal Penuh</option>
+                                <option value="bottom-right">Kanan Bawah</option>
+                                <option value="top-left">Kiri Atas</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Input Teks -->
+                    <div id="wm-text-input" class="flex flex-col gap-1">
+                        <input type="text" id="wm-text-val" placeholder="Contoh: RAHASIA / DRAFT" class="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none">
+                    </div>
+                    
+                    <!-- Input Gambar -->
+                    <div id="wm-img-input" class="hidden flex-col gap-1">
+                        <label class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Pilih Logo</label>
+                        <input type="file" id="wm-img-val" accept="image/*" class="w-full text-xs text-gray-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white active:file:bg-blue-700" onchange="loadWatermarkImage(event)">
+                    </div>
+
+                    <!-- Slider Ukuran -->
+                    <div class="flex flex-col gap-1 pt-1">
+                        <div class="flex justify-between">
+                            <label class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Ukuran Watermark</label>
+                            <span id="wm-size-val" class="text-[10px] text-blue-400 font-bold">50%</span>
+                        </div>
+                        <input type="range" id="wm-size" min="10" max="100" value="50" oninput="document.getElementById('wm-size-val').innerText = this.value + '%'">
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="processExport()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg mt-2 transition-colors flex justify-center items-center gap-2 border border-blue-500">
+                Mulai Memproses <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- UI Komponen Global: Loading & Toast -->
+    <div id="toast-container" class="absolute top-4 left-4 right-4 z-[300] flex flex-col gap-2 pointer-events-none"></div>
+
+    <div id="loader" class="absolute inset-0 bg-slate-900/90 backdrop-blur-md z-[250] flex flex-col items-center justify-center hidden">
+        <div class="relative w-16 h-16">
+            <div class="absolute inset-0 border-4 border-blue-500/20 rounded-full"></div>
+            <div class="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <i class="fa-solid fa-microchip text-blue-400 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-lg animate-pulse"></i>
+        </div>
+        <p id="loader-text" class="text-white mt-6 font-bold tracking-wide text-lg">Memproses...</p>
+        <p id="loader-subtext" class="text-blue-400 mt-1 text-sm font-medium hidden">Mengaplikasikan Filter...</p>
+    </div>
+
+    <!-- Canvas Processing Latar Belakang -->
+    <canvas id="raw-canvas" class="hidden"></canvas>
+    <canvas id="process-canvas" class="hidden"></canvas>
+
+    <script>
+        // ---------------------------------------------------------
+        // STATE MANAJEMEN APLIKASI
+        // ---------------------------------------------------------
+        const AppState = {
+            pages: [], 
+            stream: null,
+            track: null,
+            isFlashOn: false,
+            currentView: 'camera',
+            theme: 'dark',
+            
+            rawImageObj: null,
+            imageDisplayRect: { w: 0, h: 0, ox: 0, oy: 0 },
+            
+            corners: { tl: { x: 30, y: 30 }, tr: { x: 70, y: 30 }, br: { x: 70, y: 70 }, bl: { x: 30, y: 70 } },
+            currentFilter: 'magic',
+            brightness: 0,
+            contrast: 0
+        };
+
+        const DOM = {
+            views: { camera: document.getElementById('view-camera'), crop: document.getElementById('view-crop'), gallery: document.getElementById('view-gallery') },
+            camera: { video: document.getElementById('camera-stream'), flashIcon: document.getElementById('flash-icon'), flashOverlay: document.getElementById('flash-overlay') },
+            crop: { container: document.getElementById('crop-container'), image: document.getElementById('crop-image'), svgMaskPolygon: document.getElementById('mask-polygon'), svgBorderPolygon: document.getElementById('border-polygon'), magnifier: document.getElementById('magnifier'), magnifierImg: document.getElementById('magnifier-img'), handles: { tl: document.getElementById('handle-tl'), tr: document.getElementById('handle-tr'), br: document.getElementById('handle-br'), bl: document.getElementById('handle-bl') } },
+            gallery: { grid: document.getElementById('gallery-grid'), empty: document.getElementById('empty-gallery'), thumb: document.getElementById('gallery-thumb'), icon: document.getElementById('gallery-icon'), badge: document.getElementById('page-badge'), count: document.getElementById('gallery-count') },
+            canvases: { raw: document.getElementById('raw-canvas'), process: document.getElementById('process-canvas') }
+        };
+
+        // ---------------------------------------------------------
+        // UTILITIES UI
+        // ---------------------------------------------------------
+        function showLoader(t = "Memuat...", s = "") { document.getElementById('loader-text').innerText = t; const sub = document.getElementById('loader-subtext'); if(s) { sub.innerText = s; sub.classList.remove('hidden'); } else { sub.classList.add('hidden'); } document.getElementById('loader').classList.remove('hidden'); }
+        function hideLoader() { document.getElementById('loader').classList.add('hidden'); }
+        
+        function showToast(title, message, type = 'info') {
+            const toast = document.createElement('div');
+            const colors = { error: 'bg-red-50 border-red-200 text-red-700', success: 'bg-green-50 border-green-200 text-green-700', info: 'bg-white border-blue-100 text-slate-700 shadow-blue-100/50' };
+            const icons = { error: 'fa-triangle-exclamation text-red-500', success: 'fa-circle-check text-green-500', info: 'fa-info-circle text-blue-500' };
+            toast.className = `${colors[type]} border p-4 rounded-2xl shadow-xl transform transition-all duration-300 translate-y-[-150%] opacity-0 flex items-start gap-3 pointer-events-auto z-[350]`;
+            toast.innerHTML = `<i class="fa-solid ${icons[type]} mt-1 text-xl"></i><div class="flex-1"><h4 class="font-bold text-sm">${title}</h4><p class="text-xs text-slate-500 mt-0.5 font-medium">${message}</p></div>`;
+            document.getElementById('toast-container').appendChild(toast);
+            requestAnimationFrame(() => toast.classList.remove('translate-y-[-150%]', 'opacity-0'));
+            setTimeout(() => { toast.classList.add('opacity-0', 'scale-95'); setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        function switchView(viewName) {
+            Object.values(DOM.views).forEach(v => { v.classList.add('hidden'); v.classList.remove('flex'); });
+            if (DOM.views[viewName]) {
+                DOM.views[viewName].classList.remove('hidden');
+                if(viewName !== 'camera') DOM.views[viewName].classList.add('flex');
+            }
+            AppState.currentView = viewName;
+            
+            if (viewName === 'camera' && AppState.stream) DOM.camera.video.play().catch(()=>{});
+            else if (DOM.camera.video) DOM.camera.video.pause();
+            if(viewName === 'gallery') renderGallery();
+        }
+
+        function toggleTheme() {
+            showToast("Mode Ceria", "Tema telah dikunci secara permanen pada desain yang terang dan ceria!", "info");
+        }
+
+        function initTheme() {
+            // Disabled
+        }
+
+        // ---------------------------------------------------------
+        // CAMERA
+        // ---------------------------------------------------------
+        async function initCamera() {
+            if (!navigator.mediaDevices) return showToast("Kamera Gagal", "Gunakan ikon gambar di bawah untuk memilih foto dari galeri.", "error");
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } } });
+                attachStream(stream);
+            } catch (err) {
+                try {
+                    const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    attachStream(fallbackStream);
+                } catch (fallbackErr) { 
+                    showToast("Kamera Diblokir", "Akses kamera ditolak. Gunakan ikon foto di bawah untuk memilih dari galeri Anda.", "error"); 
+                }
+            }
+        }
+        function attachStream(stream) {
+            AppState.stream = stream; DOM.camera.video.srcObject = stream; AppState.track = stream.getVideoTracks()[0];
+        }
+        async function toggleFlash() {
+            if (!AppState.track) return;
+            const capabilities = AppState.track.getCapabilities();
+            if (capabilities.torch) {
+                AppState.isFlashOn = !AppState.isFlashOn;
+                await AppState.track.applyConstraints({ advanced: [{ torch: AppState.isFlashOn }] });
+                DOM.camera.flashIcon.classList.toggle('text-yellow-400', AppState.isFlashOn);
+            } else showToast("Info", "Senter tidak didukung perangkat ini.");
+        }
+
+        function captureImage() {
+            if (!AppState.stream) return showToast("Kamera Tidak Aktif", "Pilih foto dari galeri HP Anda menggunakan tombol di sebelah kanan.", "info");
+            DOM.camera.flashOverlay.style.opacity = '1'; setTimeout(() => { DOM.camera.flashOverlay.style.opacity = '0'; }, 100);
+            showLoader("Menangkap Gambar...", "Mohon tahan perangkat Anda...");
+            setTimeout(() => {
+                const video = DOM.camera.video; const canvas = DOM.canvases.raw;
+                canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+                processInitialImage(canvas.toDataURL('image/jpeg', 0.95));
+            }, 100);
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0]; if(!file) return;
+            showLoader("Membuka Foto...", "Mendeteksi gambar...");
+            const reader = new FileReader();
+            reader.onload = function(e) { processInitialImage(e.target.result); }
+            reader.readAsDataURL(file); event.target.value = ''; 
+        }
+
+        function processInitialImage(dataUrl) {
+            AppState.rawImageObj = new Image();
+            AppState.rawImageObj.onload = () => {
+                // Reset parameter
+                AppState.corners = { tl: { x: 25, y: 25 }, tr: { x: 75, y: 25 }, br: { x: 75, y: 75 }, bl: { x: 25, y: 75 } };
+                document.getElementById('slider-bright').value = AppState.brightness = 0;
+                document.getElementById('slider-contrast').value = AppState.contrast = 0;
+                applyFilter('magic');
+                
+                switchView('crop');
+                // Beri waktu UI untuk ter-render sebelum kalkulasi ukuran
+                setTimeout(() => { setupCropUI(); hideLoader(); }, 50);
+            };
+            AppState.rawImageObj.src = dataUrl;
+        }
+
+        // ---------------------------------------------------------
+        // CROP UI, DRAG & PREVIEW
+        // ---------------------------------------------------------
+        function rotateRawImage() {
+            showLoader("Memutar...", "Membentuk ulang gambar");
+            setTimeout(() => {
+                const img = AppState.rawImageObj;
+                const canvas = document.createElement('canvas');
+                canvas.width = img.height; canvas.height = img.width;
+                const ctx = canvas.getContext('2d');
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate(90 * Math.PI / 180);
+                ctx.drawImage(img, -img.width / 2, -img.height / 2);
+                
+                const newDataUrl = canvas.toDataURL('image/jpeg', 1.0);
+                AppState.rawImageObj = new Image();
+                AppState.rawImageObj.onload = () => { setupCropUI(); hideLoader(); };
+                AppState.rawImageObj.src = newDataUrl;
+            }, 50);
+        }
+
+        function toggleCropTab(tab) {
+            document.getElementById('tab-btn-filter').classList.toggle('text-blue-600', tab === 'filter');
+            document.getElementById('tab-btn-filter').classList.toggle('font-bold', tab === 'filter');
+            document.getElementById('tab-btn-filter').classList.toggle('text-slate-400', tab !== 'filter');
+            
+            document.getElementById('tab-btn-adjust').classList.toggle('text-blue-600', tab === 'adjust');
+            document.getElementById('tab-btn-adjust').classList.toggle('font-bold', tab === 'adjust');
+            document.getElementById('tab-btn-adjust').classList.toggle('text-slate-400', tab !== 'adjust');
+            
+            if(tab === 'filter') {
+                document.getElementById('tab-content-filter').classList.remove('hidden');
+                document.getElementById('tab-content-filter').classList.add('flex');
+                document.getElementById('tab-content-adjust').classList.add('hidden');
+                document.getElementById('tab-content-adjust').classList.remove('flex');
+            } else {
+                document.getElementById('tab-content-filter').classList.add('hidden');
+                document.getElementById('tab-content-filter').classList.remove('flex');
+                document.getElementById('tab-content-adjust').classList.remove('hidden');
+                document.getElementById('tab-content-adjust').classList.add('flex');
+            }
+        }
+
+        function updateLivePreview() {
+            AppState.brightness = parseInt(document.getElementById('slider-bright').value);
+            AppState.contrast = parseInt(document.getElementById('slider-contrast').value);
+            document.getElementById('val-bright').innerText = AppState.brightness;
+            document.getElementById('val-contrast').innerText = AppState.contrast;
+
+            // Mapping Slider (-100 to 100) to CSS Filter (0% to 200%)
+            const cssBright = AppState.brightness + 100;
+            const cssContrast = AppState.contrast + 100;
+            
+            let filterStr = `brightness(${cssBright}%) contrast(${cssContrast}%)`;
+            if (AppState.currentFilter === 'grayscale' || AppState.currentFilter === 'magic') {
+                filterStr += ` grayscale(100%)`;
+            }
+            DOM.crop.image.style.filter = filterStr;
+            DOM.crop.magnifierImg.style.filter = filterStr;
+        }
+
+        function applyFilter(type) {
+            AppState.currentFilter = type;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('border-blue-400', 'text-blue-600', 'bg-blue-50');
+                btn.classList.add('border-white', 'text-slate-700', 'bg-white/70');
+            });
+            const el = document.getElementById(type === 'none' ? 'btn-filter-none' : (type === 'grayscale' ? 'btn-filter-gray' : 'btn-filter-magic'));
+            el.classList.add('border-blue-400', 'text-blue-600', 'bg-blue-50');
+            el.classList.remove('border-white', 'text-slate-700', 'bg-white/70');
+            updateLivePreview();
+        }
+
+        function setupCropUI() {
+            DOM.crop.image.src = AppState.rawImageObj.src;
+            DOM.crop.magnifierImg.style.backgroundImage = `url(${AppState.rawImageObj.src})`;
+            
+            const container = DOM.crop.container;
+            const imgW = AppState.rawImageObj.width;
+            const imgH = AppState.rawImageObj.height;
+            
+            // Padding ruang lega (48px)
+            const conW = container.clientWidth - 48;
+            const conH = container.clientHeight - 48;
+            
+            let displayW, displayH;
+            if (imgW / imgH > conW / conH) { displayW = conW; displayH = displayW * (imgH / imgW); } 
+            else { displayH = conH; displayW = displayH * (imgW / imgH); }
+            
+            const offsetX = (container.clientWidth - displayW) / 2;
+            const offsetY = (container.clientHeight - displayH) / 2;
+
+            DOM.crop.image.style.width = displayW + 'px';
+            DOM.crop.image.style.height = displayH + 'px';
+            DOM.crop.image.style.left = offsetX + 'px';
+            DOM.crop.image.style.top = offsetY + 'px';
+            
+            AppState.imageDisplayRect = { w: displayW, h: displayH, ox: offsetX, oy: offsetY };
+            
+            updateLivePreview();
+            updateCropVisuals();
+        }
+
+        function updateCropVisuals() {
+            const r = AppState.imageDisplayRect; const c = AppState.corners;
+            const getX = (p) => r.ox + (p / 100) * r.w;
+            const getY = (p) => r.oy + (p / 100) * r.h;
+
+            DOM.crop.handles.tl.style.left = getX(c.tl.x) + 'px'; DOM.crop.handles.tl.style.top = getY(c.tl.y) + 'px';
+            DOM.crop.handles.tr.style.left = getX(c.tr.x) + 'px'; DOM.crop.handles.tr.style.top = getY(c.tr.y) + 'px';
+            DOM.crop.handles.br.style.left = getX(c.br.x) + 'px'; DOM.crop.handles.br.style.top = getY(c.br.y) + 'px';
+            DOM.crop.handles.bl.style.left = getX(c.bl.x) + 'px'; DOM.crop.handles.bl.style.top = getY(c.bl.y) + 'px';
+            
+            const pointsStr = `${getX(c.tl.x)},${getY(c.tl.y)} ${getX(c.tr.x)},${getY(c.tr.y)} ${getX(c.br.x)},${getY(c.br.y)} ${getX(c.bl.x)},${getY(c.bl.y)}`;
+            DOM.crop.svgMaskPolygon.setAttribute('points', pointsStr);
+            DOM.crop.svgBorderPolygon.setAttribute('points', pointsStr);
+        }
+
+        let activeHandle = null;
+        ['tl', 'tr', 'br', 'bl'].forEach(h => {
+            const el = DOM.crop.handles[h];
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); activeHandle = h; updateMagnifier(e); }, {passive: false});
+            el.addEventListener('mousedown', (e) => { e.preventDefault(); activeHandle = h; updateMagnifier(e); });
+        });
+        document.addEventListener('touchmove', handleMove, {passive: false});
+        document.addEventListener('mousemove', handleMove);
+        const endDrag = () => { activeHandle = null; if(DOM.crop && DOM.crop.magnifier) DOM.crop.magnifier.classList.add('hidden'); };
+        document.addEventListener('touchend', endDrag);
+        document.addEventListener('mouseup', endDrag);
+
+        function handleMove(e) {
+            if (!activeHandle || AppState.currentView !== 'crop') return;
+            e.preventDefault(); updateMagnifier(e);
+        }
+
+        function updateMagnifier(e) {
+            const cx = e.touches ? e.touches[0].clientX : e.clientX;
+            const cy = e.touches ? e.touches[0].clientY : e.clientY;
+            const conRect = DOM.crop.container.getBoundingClientRect();
+            const r = AppState.imageDisplayRect;
+            
+            let x = cx - conRect.left - r.ox; let y = cy - conRect.top - r.oy;
+            x = Math.max(0, Math.min(r.w, x)); // Lock to image bounds
+            y = Math.max(0, Math.min(r.h, y));
+            
+            AppState.corners[activeHandle] = { x: (x / r.w) * 100, y: (y / r.h) * 100 };
+            updateCropVisuals();
+
+            // Magnifier Logic
+            DOM.crop.magnifier.classList.remove('hidden');
+            let mX = cx - conRect.left - 50; 
+            let mY = cy - conRect.top - 140; // Di atas jari
+            mX = Math.max(10, Math.min(conRect.width - 110, mX));
+            mY = Math.max(10, mY);
+
+            DOM.crop.magnifier.style.left = mX + 'px';
+            DOM.crop.magnifier.style.top = mY + 'px';
+
+            DOM.crop.magnifierImg.style.backgroundSize = `${r.w * 2}px ${r.h * 2}px`;
+            DOM.crop.magnifierImg.style.backgroundPosition = `-${x * 2 - 50}px -${y * 2 - 50}px`;
+        }
+
+        // ---------------------------------------------------------
+        // MATEMATIKA PERSPECTIVE & WARNA PIKSEL
+        // ---------------------------------------------------------
+        function applyPerspectiveTransform() {
+            showLoader("Memproses Dokumen...", "Menyelaraskan perspektif & warna...");
+            
+            setTimeout(() => {
+                const img = AppState.rawImageObj; const c = AppState.corners;
+                const getPx = (p) => ({ x: (p.x / 100) * img.width, y: (p.y / 100) * img.height });
+                const p0 = getPx(c.tl), p1 = getPx(c.tr), p2 = getPx(c.br), p3 = getPx(c.bl);
+
+                const outW = Math.max(Math.hypot(p1.x - p0.x, p1.y - p0.y), Math.hypot(p2.x - p3.x, p2.y - p3.y));
+                const outH = Math.max(Math.hypot(p3.x - p0.x, p3.y - p0.y), Math.hypot(p2.x - p1.x, p2.y - p1.y));
+                
+                let scale = 1; const MAX_DIM = 2400; // Resolusi Tinggi
+                if (outW > MAX_DIM || outH > MAX_DIM) scale = MAX_DIM / Math.max(outW, outH);
+                const finalW = Math.floor(outW * scale), finalH = Math.floor(outH * scale);
+
+                const rawCanvas = DOM.canvases.raw; rawCanvas.width = img.width; rawCanvas.height = img.height;
+                const rawCtx = rawCanvas.getContext('2d', { willReadFrequently: true });
+                rawCtx.drawImage(img, 0, 0);
+                const src = rawCtx.getImageData(0, 0, img.width, img.height).data;
+
+                const outCanvas = DOM.canvases.process; outCanvas.width = finalW; outCanvas.height = finalH;
+                const outCtx = outCanvas.getContext('2d');
+                const dstImgData = outCtx.createImageData(finalW, finalH); const dst = dstImgData.data;
+
+                // Hitung Matriks Homography 8-DoF
+                let dx1 = p1.x - p2.x, dx2 = p3.x - p2.x, dx3 = p0.x - p1.x + p2.x - p3.x;
+                let dy1 = p1.y - p2.y, dy2 = p3.y - p2.y, dy3 = p0.y - p1.y + p2.y - p3.y;
+                let det = dx1 * dy2 - dx2 * dy1;
+                let g = 0, h = 0, a = 0, b = 0, c_p = 0, d = 0, e = 0, f_p = 0;
+                
+                if (det !== 0) {
+                    g = (dx3 * dy2 - dx2 * dy3) / det; h = (dx1 * dy3 - dx3 * dy1) / det;
+                    a = p1.x - p0.x + g * p1.x; b = p3.x - p0.x + h * p3.x; c_p = p0.x;
+                    d = p1.y - p0.y + g * p1.y; e = p3.y - p0.y + h * p3.y; f_p = p0.y;
+                }
+
+                // Pengatur Kontras & Kecerahan Manual
+                const bright = AppState.brightness; // -100 to 100
+                const contrast = AppState.contrast; // -100 to 100
+                const cFactor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+
+                for (let y = 0; y < finalH; y++) {
+                    const v = y / finalH;
+                    for (let x = 0; x < finalW; x++) {
+                        const u = x / finalW;
+                        const denominator = g * u + h * v + 1;
+                        let srcX = Math.round((a * u + b * v + c_p) / denominator);
+                        let srcY = Math.round((d * u + e * v + f_p) / denominator);
+
+                        const dstIdx = (y * finalW + x) * 4;
+                        if (srcX >= 0 && srcX < img.width && srcY >= 0 && srcY < img.height) {
+                            const srcIdx = (srcY * img.width + srcX) * 4;
+                            
+                            // Ambil Piksel Asli
+                            let pR = src[srcIdx], pG = src[srcIdx+1], pB = src[srcIdx+2];
+
+                            // Kalkulasi Contrast & Brightness
+                            pR = cFactor * (pR - 128) + 128 + bright;
+                            pG = cFactor * (pG - 128) + 128 + bright;
+                            pB = cFactor * (pB - 128) + 128 + bright;
+
+                            // Terapkan Filter Tambahan (B&W / Enhance)
+                            if (AppState.currentFilter !== 'none') {
+                                let gray = 0.299 * pR + 0.587 * pG + 0.114 * pB;
+                                if (AppState.currentFilter === 'magic') {
+                                    // Threshold Otomatis ala Mesin Fotokopi
+                                    gray = gray < 130 ? Math.max(0, gray - 50) : Math.min(255, gray + 60);
+                                }
+                                dst[dstIdx] = dst[dstIdx+1] = dst[dstIdx+2] = Math.max(0, Math.min(255, gray));
+                            } else {
+                                dst[dstIdx] = Math.max(0, Math.min(255, pR));
+                                dst[dstIdx+1] = Math.max(0, Math.min(255, pG));
+                                dst[dstIdx+2] = Math.max(0, Math.min(255, pB));
+                            }
+                            dst[dstIdx+3] = 255;
+                        } else {
+                            dst[dstIdx+3] = 255; // Hitam diluar batas
+                        }
+                    }
+                }
+
+                outCtx.putImageData(dstImgData, 0, 0);
+                saveToGallery(outCanvas.toDataURL('image/jpeg', 0.95)); // Simpan kualitas tinggi ke memory
+                
+                hideLoader(); switchView('camera');
+                showToast("Tersimpan", "Dokumen berhasil diproses.", "success");
+            }, 50); 
+        }
+
+        // ---------------------------------------------------------
+        // GALLERY & SORTABLE
+        // ---------------------------------------------------------
+        function saveToGallery(dataUrl) { AppState.pages.push(dataUrl); updateGalleryBadge(); }
+
+        function updateGalleryBadge() {
+            const count = AppState.pages.length; DOM.gallery.count.innerText = count;
+            if (count > 0) {
+                DOM.gallery.thumb.src = AppState.pages[count - 1]; DOM.gallery.thumb.classList.remove('hidden'); DOM.gallery.icon.classList.add('hidden');
+                DOM.gallery.badge.innerText = count; DOM.gallery.badge.classList.remove('hidden');
+                DOM.gallery.badge.classList.add('scale-150'); setTimeout(() => DOM.gallery.badge.classList.remove('scale-150'), 250);
+            } else {
+                DOM.gallery.thumb.classList.add('hidden'); DOM.gallery.icon.classList.remove('hidden'); DOM.gallery.badge.classList.add('hidden');
+            }
+        }
+
+        function renderGallery() {
+            DOM.gallery.grid.innerHTML = '';
+            if (AppState.pages.length === 0) { DOM.gallery.grid.appendChild(DOM.gallery.empty); DOM.gallery.empty.classList.remove('hidden'); return; }
+            DOM.gallery.empty.classList.add('hidden');
+
+            AppState.pages.forEach((page, index) => {
+                const item = document.createElement('div');
+                item.className = 'relative glass-element rounded-2xl overflow-hidden aspect-[3/4] group cursor-grab active:cursor-grabbing p-1.5';
+                item.innerHTML = `
+                    <div class="w-full h-full rounded-xl overflow-hidden relative border border-white/50">
+                        <img src="${page}" class="w-full h-full object-cover pointer-events-none">
+                        <div class="absolute inset-0 shadow-[inset_0_0_20px_rgba(0,0,0,0.1)] pointer-events-none"></div>
+                    </div>
+                    <div class="absolute top-3 left-3 bg-white/90 backdrop-blur-sm text-blue-600 text-xs px-2.5 py-1 rounded-lg font-black z-10 shadow-sm border border-white">${index + 1}</div>
+                    <button onclick="deletePage(${index})" class="absolute bottom-3 right-3 w-10 h-10 bg-red-500/90 backdrop-blur-md border border-white/50 rounded-full text-white flex items-center justify-center shadow-[0_5px_15px_rgba(239,68,68,0.3)] active:scale-90 z-10 transition-transform"><i class="fa-solid fa-trash text-sm"></i></button>
+                `;
+                DOM.gallery.grid.appendChild(item);
+            });
+
+            new Sortable(DOM.gallery.grid, {
+                animation: 200, ghostClass: 'opacity-40',
+                onEnd: function (evt) {
+                    const movedItem = AppState.pages.splice(evt.oldIndex, 1)[0];
+                    AppState.pages.splice(evt.newIndex, 0, movedItem);
+                    renderGallery(); showToast("Diurutkan", "Urutan halaman diperbarui.", "info");
+                },
+            });
+        }
+        window.deletePage = function(index) { AppState.pages.splice(index, 1); updateGalleryBadge(); renderGallery(); };
+
+        // ---------------------------------------------------------
+        // EKSPOR & KOMPRESI (PDF / JPG)
+        // ---------------------------------------------------------
+        let watermarkImgData = null;
+
+        function toggleWatermarkOptions() {
+            const isChecked = document.getElementById('use-watermark').checked;
+            document.getElementById('watermark-options').style.display = isChecked ? 'flex' : 'none';
+        }
+
+        function toggleWmType() {
+            const type = document.getElementById('wm-type').value;
+            if(type === 'text') {
+                document.getElementById('wm-text-input').classList.remove('hidden');
+                document.getElementById('wm-text-input').classList.add('flex');
+                document.getElementById('wm-img-input').classList.add('hidden');
+                document.getElementById('wm-img-input').classList.remove('flex');
+            } else {
+                document.getElementById('wm-text-input').classList.add('hidden');
+                document.getElementById('wm-text-input').classList.remove('flex');
+                document.getElementById('wm-img-input').classList.remove('hidden');
+                document.getElementById('wm-img-input').classList.add('flex');
+            }
+        }
+
+        function loadWatermarkImage(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => { watermarkImgData = ev.target.result; showToast("Logo Dimuat", "Watermark gambar siap digunakan.", "info")};
+            reader.readAsDataURL(file);
+        }
+
+        function openExportModal() {
+            if (AppState.pages.length === 0) return showToast("Galeri Kosong", "Pindai dokumen terlebih dahulu.", "error");
+            // Set Default Filename
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}`;
+            document.getElementById('export-filename').value = "NguliScan_" + dateStr;
+            
+            const modal = document.getElementById('modal-export');
+            const card = document.getElementById('export-card');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            setTimeout(() => card.classList.remove('scale-95'), 10);
+        }
+
+        function closeExportModal() {
+            const modal = document.getElementById('modal-export');
+            const card = document.getElementById('export-card');
+            card.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200);
+        }
+
+        async function processExport() {
+            closeExportModal();
+            const filename = document.getElementById('export-filename').value || "NguliScanner_Dokumen";
+            const format = document.getElementById('export-format').value;
+            const size = document.getElementById('export-size').value;
+            const quality = parseInt(document.getElementById('export-quality').value) / 100; // 0.01 to 1.0
+            
+            // Konfigurasi Watermark
+            const useWm = document.getElementById('use-watermark').checked;
+            const wmType = document.getElementById('wm-type').value;
+            const wmPos = document.getElementById('wm-position').value;
+            const wmSize = parseInt(document.getElementById('wm-size').value);
+            const wmText = document.getElementById('wm-text-val').value;
+
+            showLoader("Memproses File...", `Menyiapkan ${AppState.pages.length} halaman dengan kualitas ${Math.round(quality*100)}%`);
+
+            setTimeout(async () => {
+                try {
+                    // Pre-kompresi & Pembubuhan Watermark menggunakan Canvas
+                    const processedImages = await Promise.all(AppState.pages.map(async (pageUrl) => {
+                        return new Promise(async (resolve) => {
+                            const img = new Image();
+                            img.onload = async () => {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = img.width; canvas.height = img.height;
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(img, 0, 0);
+                                
+                                // --- PROSES WATERMARK ---
+                                if (useWm) {
+                                    ctx.save();
+                                    ctx.globalAlpha = 0.45; // Transparansi 45% agar teks asli dokumen tetap terbaca
+                                    
+                                    if (wmType === 'text' && wmText.trim() !== '') {
+                                        // Kalkulasi ukuran font dinamis berdasarkan resolusi gambar (10-100 dari slider)
+                                        const baseFontSize = (canvas.width / 15) * (wmSize / 50); 
+                                        ctx.font = `bold ${baseFontSize}px sans-serif`;
+                                        ctx.fillStyle = '#808080'; // Abu-abu
+                                        ctx.textAlign = 'center';
+                                        ctx.textBaseline = 'middle';
+                                        
+                                        if (wmPos === 'diagonal') {
+                                            ctx.translate(canvas.width/2, canvas.height/2);
+                                            ctx.rotate(-Math.PI / 4); // Putar miring -45 derajat
+                                            ctx.font = `bold ${baseFontSize * 1.5}px sans-serif`; // Lebih besar untuk diagonal
+                                            ctx.fillText(wmText, 0, 0);
+                                        } else {
+                                            let x = canvas.width / 2, y = canvas.height / 2;
+                                            if (wmPos === 'bottom-right') {
+                                                ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+                                                x = canvas.width - (canvas.width * 0.05); y = canvas.height - (canvas.height * 0.05);
+                                            } else if (wmPos === 'top-left') {
+                                                ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+                                                x = (canvas.width * 0.05); y = (canvas.height * 0.05);
+                                            }
+                                            ctx.fillText(wmText, x, y);
+                                        }
+                                        
+                                    } else if (wmType === 'image' && watermarkImgData) {
+                                        // Render gambar logo secara asinkron
+                                        await new Promise((resWm) => {
+                                            const wImg = new Image();
+                                            wImg.onload = () => {
+                                                // Skala logo maksimal setengah dari lebar dokumen pada setelan 100%
+                                                const scale = (canvas.width / wImg.width) * (wmSize / 100) * 0.6; 
+                                                const finalW = wImg.width * scale;
+                                                const finalH = wImg.height * scale;
+                                                
+                                                let x = (canvas.width - finalW) / 2;
+                                                let y = (canvas.height - finalH) / 2;
+                                                
+                                                if (wmPos === 'bottom-right') {
+                                                    x = canvas.width - finalW - (canvas.width * 0.05);
+                                                    y = canvas.height - finalH - (canvas.height * 0.05);
+                                                } else if (wmPos === 'top-left') {
+                                                    x = canvas.width * 0.05;
+                                                    y = canvas.height * 0.05;
+                                                } else if (wmPos === 'diagonal') {
+                                                    ctx.translate(canvas.width/2, canvas.height/2);
+                                                    ctx.rotate(-Math.PI / 4);
+                                                    x = -finalW/2;
+                                                    y = -finalH/2;
+                                                }
+                                                
+                                                ctx.drawImage(wImg, x, y, finalW, finalH);
+                                                resWm();
+                                            };
+                                            wImg.src = watermarkImgData;
+                                        });
+                                    }
+                                    ctx.restore();
+                                }
+                                // --- SELESAI PROSES WATERMARK ---
+
+                                // Kompresi sesuai slider kualitas dan simpan
+                                resolve({ url: canvas.toDataURL('image/jpeg', quality), w: img.width, h: img.height });
+                            };
+                            img.src = pageUrl;
+                        });
+                    }));
+
+                    if (format === 'pdf') {
+                        const { jsPDF } = window.jspdf;
+                        let doc = null;
+
+                        processedImages.forEach((imgObj, index) => {
+                            // Hitung ukuran kertas PDF (mm)
+                            const paper = { a4: [210, 297], f4: [210, 330], id: [53.98, 85.6] };
+                            let pdfW, pdfH;
+                            
+                            if (size === 'asli') {
+                                // Konversi pixel ke mm asumsikan DPI layar/standar
+                                pdfW = imgObj.w * 25.4 / 150; 
+                                pdfH = imgObj.h * 25.4 / 150;
+                            } else {
+                                pdfW = paper[size][0]; pdfH = paper[size][1];
+                            }
+
+                            if (index === 0) doc = new jsPDF({ orientation: pdfW > pdfH ? 'l' : 'p', unit: 'mm', format: [pdfW, pdfH] });
+                            else doc.addPage([pdfW, pdfH], pdfW > pdfH ? 'l' : 'p');
+
+                            // Scale to Fit Center (Untuk ukuran baku)
+                            let finalW = pdfW, finalH = pdfH;
+                            if (size !== 'asli') {
+                                const ratio = imgObj.w / imgObj.h;
+                                if (pdfH * ratio <= pdfW) { finalH = pdfH; finalW = finalH * ratio; } 
+                                else { finalW = pdfW; finalH = finalW / ratio; }
+                            }
+                            
+                            const x = (pdfW - finalW) / 2;
+                            const y = (pdfH - finalH) / 2;
+                            
+                            doc.addImage(imgObj.url, 'JPEG', x, y, finalW, finalH, undefined, 'FAST');
+                        });
+                        
+                        doc.save(`${filename}.pdf`);
+                        showToast("Selesai!", "File PDF berhasil disimpan.", "success");
+
+                    } else if (format === 'jpg') {
+                        if (processedImages.length === 1) {
+                            // Unduh langsung jika 1 halaman
+                            const link = document.createElement('a');
+                            link.href = processedImages[0].url;
+                            link.download = `${filename}.jpg`;
+                            link.click();
+                            showToast("Selesai!", "Gambar berhasil disimpan.", "success");
+                        } else {
+                            // Buat file ZIP jika banyak halaman
+                            const zip = new JSZip();
+                            processedImages.forEach((imgObj, idx) => {
+                                const base64Data = imgObj.url.split(',')[1];
+                                zip.file(`${filename}_Hal_${idx + 1}.jpg`, base64Data, {base64: true});
+                            });
+                            
+                            document.getElementById('loader-subtext').innerText = "Membungkus ke dalam ZIP...";
+                            document.getElementById('loader-subtext').classList.remove('hidden');
+                            
+                            const content = await zip.generateAsync({type: "blob"});
+                            const link = document.createElement('a');
+                            link.href = URL.createObjectURL(content);
+                            link.download = `${filename}.zip`;
+                            link.click();
+                            showToast("Selesai!", `ZIP berisi ${processedImages.length} gambar berhasil diunduh.`, "success");
+                        }
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showToast("Error", "Gagal mengekspor file.", "error");
+                } finally {
+                    hideLoader();
+                }
+            }, 100);
+        }
+
+        // ==========================================
+        // TRIK PWA (INSTALL KE HOME SCREEN) 1 FILE UTUH
+        // ==========================================
+        function initPWA() {
+            // 1. Buat KTP Aplikasi (Manifest) secara dinamis
+            const manifestData = {
+                "name": "Nguli Scanner Pro",
+                "short_name": "NguliScan",
+                "description": "Aplikasi Scanner Dokumen Pekerja Keras",
+                "start_url": "./",
+                "display": "standalone",
+                "background_color": "#ffffff",
+                "theme_color": "#3b82f6",
+                "icons": [
+                    {
+                        // Ikon Helm SVG yang di-encode ke Base64
+                        "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%231e293b' rx='115'/%3E%3Cpath fill='%23ffffff' d='M256 128C176 128 112 192 112 272c0 24 6 46 16 66l32-16c-10-16-16-33-16-50 0-62 50-112 112-112s112 50 112 112c0 17-6 34-16 50l32 16c10-20 16-42 16-66 0-80-64-144-144-144zm0 256c-61 0-111-49-111-109 0-33 14-63 37-83l22 24c-17 15-27 38-27 59 0 43 35 77 79 77s79-34 79-77c0-21-10-44-27-59l22-24c23 20 37 50 37 83 0 60-50 109-111 109z'/%3E%3C/svg%3E",
+                        "sizes": "512x512",
+                        "type": "image/svg+xml",
+                        "purpose": "any maskable"
+                    }
+                ]
+            };
+            
+            const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
+            const manifestUrl = URL.createObjectURL(manifestBlob);
+            const link = document.createElement('link');
+            link.rel = 'manifest';
+            link.href = manifestUrl;
+            document.head.appendChild(link);
+            
+            console.log("KTP Aplikasi (Manifest) berhasil dimuat. Buka menu browser untuk 'Tambahkan ke Layar Utama'.");
+        }
+
+        window.onload = () => {
+            initTheme();
+            initPWA();
+        };
+    </script>
+</body>
+</html>

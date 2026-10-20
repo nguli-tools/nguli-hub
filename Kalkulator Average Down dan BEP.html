@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Average Down Saham Indonesia</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Custom scrollbar for cleaner look */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .input-group:focus-within label { color: #2563eb; }
+        .input-group:focus-within input { border-color: #2563eb; ring: 2px; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-2">
+                    <div class="bg-blue-600 text-white p-1.5 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight text-slate-900">AvgDown<span class="text-blue-600">IDX</span></span>
+                </div>
+                <div class="text-sm text-slate-500 hidden sm:block">Kalkulator Strategi Investasi</div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow py-8 px-4 sm:px-6">
+        <div class="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- Left Column: Inputs -->
+            <div class="lg:col-span-5 space-y-6">
+                
+                <!-- Settings Card (Fees) -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center mb-4 cursor-pointer" onclick="toggleSettings()">
+                        <h3 class="font-semibold text-slate-700 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            Pengaturan Fee Sekuritas
+                        </h3>
+                        <svg id="chevron" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+                    <div id="settings-panel" class="grid grid-cols-2 gap-4">
+                        <div class="input-group">
+                            <label class="block text-xs font-medium text-slate-500 mb-1">Fee Beli (%)</label>
+                            <input type="number" id="buyFee" value="0.15" step="0.01" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                        </div>
+                        <div class="input-group">
+                            <label class="block text-xs font-medium text-slate-500 mb-1">Fee Jual (%)</label>
+                            <input type="number" id="sellFee" value="0.25" step="0.01" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Portfolio Input -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-1 h-full bg-slate-300"></div>
+                    <h2 class="text-lg font-bold text-slate-800 mb-4">Portofolio Saat Ini</h2>
+                    <div class="space-y-4">
+                        <div class="input-group">
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Harga Rata-rata (Avg Price)</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-2.5 text-slate-400">Rp</span>
+                                <input type="number" id="currentPrice" placeholder="0" class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-semibold text-slate-700">
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Jumlah Lot Dimiliki</label>
+                            <input type="number" id="currentLot" placeholder="0" class="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-semibold text-slate-700">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Buy Action Input -->
+                <div class="bg-white rounded-2xl p-6 shadow-lg border border-blue-100 relative overflow-hidden transform hover:scale-[1.01] transition-transform duration-300">
+                    <div class="absolute top-0 left-0 w-1.5 h-full bg-blue-600"></div>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-slate-800">Pembelian Baru (Average Down)</h2>
+                        <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-md">ACTION</span>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="input-group">
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Harga Beli Baru</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-2.5 text-slate-400">Rp</span>
+                                <input type="number" id="buyPrice" placeholder="0" class="w-full pl-10 pr-4 py-2.5 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold text-blue-900 bg-blue-50/50">
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Jumlah Lot Dibeli</label>
+                            <input type="number" id="buyLot" placeholder="0" class="w-full px-4 py-2.5 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold text-blue-900 bg-blue-50/50">
+                        </div>
+                        
+                        <!-- Quick Calculations for input -->
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-slate-500">Dana Dibutuhkan (+Fee):</span>
+                                <span class="font-bold text-slate-700" id="fundsNeeded">Rp 0</span>
+                            </div>
+                        </div>
+                        
+                        <button onclick="resetForm()" class="w-full py-2 text-sm text-slate-500 hover:text-red-500 transition-colors flex justify-center items-center gap-2 mt-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Reset Form
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Results -->
+            <div class="lg:col-span-7 space-y-6">
+                
+                <!-- Main Result Card -->
+                <div class="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
+                    <!-- Decorative circles -->
+                    <div class="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl"></div>
+                    <div class="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-blue-400 opacity-20 rounded-full blur-2xl"></div>
+
+                    <h2 class="text-blue-100 text-sm font-medium tracking-wide uppercase mb-1">Harga Rata-rata Baru</h2>
+                    <div class="text-5xl sm:text-6xl font-extrabold mb-2 tracking-tight flex items-baseline gap-2">
+                        <span class="text-2xl opacity-70">Rp</span>
+                        <span id="newAvgPrice">0</span>
+                    </div>
+                    <p class="text-blue-200 text-sm mb-6">Termasuk estimasi fee beli pembelian baru.</p>
+
+                    <div class="grid grid-cols-2 gap-4 border-t border-white/20 pt-6">
+                        <div>
+                            <div class="text-blue-200 text-xs uppercase font-semibold mb-1">Total Lot</div>
+                            <div class="text-2xl font-bold" id="totalLots">0</div>
+                            <div class="text-xs text-blue-200" id="totalShares">0 Lembar</div>
+                        </div>
+                        <div>
+                            <div class="text-blue-200 text-xs uppercase font-semibold mb-1">Total Investasi</div>
+                            <div class="text-2xl font-bold" id="totalInvested">0</div>
+                            <div class="text-xs text-blue-200">Estimasi Value</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Break Even Analysis -->
+                <div class="bg-white rounded-2xl p-6 shadow-md border border-slate-200">
+                    <h3 class="font-bold text-slate-800 text-lg mb-4 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Analisa Break Even (Balik Modal)
+                    </h3>
+                    
+                    <div class="flex flex-col sm:flex-row gap-6 items-center">
+                        <div class="flex-1 w-full">
+                            <div class="text-sm text-slate-500 mb-1">Harga Jual Minimal (Net)</div>
+                            <div class="text-3xl font-bold text-slate-800" id="bepPrice">Rp 0</div>
+                            <div class="text-xs text-slate-400 mt-1">*Sudah memperhitungkan Fee Jual</div>
+                        </div>
+                        
+                        <div class="h-12 w-px bg-slate-200 hidden sm:block"></div>
+                        
+                        <div class="flex-1 w-full">
+                            <div class="text-sm text-slate-500 mb-1">Gap ke BEP</div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-3xl font-bold text-slate-800" id="gapPercent">0.00%</span>
+                                <span class="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-500 font-medium" id="gapStatus">Netral</span>
+                            </div>
+                            <div class="text-xs text-slate-400 mt-1">Kenaikan yg dibutuhkan dari harga beli</div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar Simulation -->
+                    <div class="mt-6">
+                         <div class="flex justify-between text-xs font-medium text-slate-500 mb-2">
+                            <span>Harga Beli Baru</span>
+                            <span>Target BEP</span>
+                         </div>
+                         <div class="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                             <div class="h-full bg-blue-500 transition-all duration-500" style="width: 0%" id="progressBar"></div>
+                         </div>
+                    </div>
+                </div>
+
+                <!-- Details Table -->
+                <div class="bg-white rounded-2xl overflow-hidden border border-slate-200">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+                            <tr>
+                                <th class="px-6 py-3">Komponen</th>
+                                <th class="px-6 py-3 text-right">Nilai</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr>
+                                <td class="px-6 py-3 text-slate-600">Modal Awal</td>
+                                <td class="px-6 py-3 text-right font-semibold text-slate-800" id="oldCapital">Rp 0</td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-3 text-slate-600">
+                                    Modal Tambahan <span class="text-xs text-slate-400">(+Fee)</span>
+                                </td>
+                                <td class="px-6 py-3 text-right font-semibold text-slate-800" id="newCapital">Rp 0</td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-3 text-slate-600">Fee Beli <span class="text-xs text-slate-400">(Estimasi)</span></td>
+                                <td class="px-6 py-3 text-right text-red-500" id="feeBuyAmount">Rp 0</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-white border-t border-slate-200 mt-8 py-6">
+        <div class="max-w-5xl mx-auto px-6 text-center text-slate-400 text-sm">
+            <p>Dibuat untuk investor saham Indonesia.</p>
+            <p class="mt-1 text-xs">Perhitungan adalah estimasi. Selalu cek kembali dengan aplikasi sekuritas Anda.</p>
+        </div>
+    </footer>
+
+    <script>
+        // DOM Elements
+        const inputs = ['currentPrice', 'currentLot', 'buyPrice', 'buyLot', 'buyFee', 'sellFee'];
+        const formatIDR = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
+        const formatNum = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
+        const formatPercent = new Intl.NumberFormat('id-ID', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        // Add Event Listeners
+        inputs.forEach(id => {
+            document.getElementById(id).addEventListener('input', calculate);
+        });
+
+        function getVal(id) {
+            return parseFloat(document.getElementById(id).value) || 0;
+        }
+
+        function toggleSettings() {
+            const panel = document.getElementById('settings-panel');
+            const chevron = document.getElementById('chevron');
+            panel.classList.toggle('hidden');
+            if(panel.classList.contains('hidden')) {
+                chevron.style.transform = 'rotate(0deg)';
+            } else {
+                chevron.style.transform = 'rotate(180deg)';
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('currentPrice').value = '';
+            document.getElementById('currentLot').value = '';
+            document.getElementById('buyPrice').value = '';
+            document.getElementById('buyLot').value = '';
+            calculate();
+        }
+
+        function calculate() {
+            // Get Values
+            const currentPrice = getVal('currentPrice');
+            const currentLot = getVal('currentLot');
+            const buyPrice = getVal('buyPrice');
+            const buyLot = getVal('buyLot');
+            const buyFeePct = getVal('buyFee') / 100;
+            const sellFeePct = getVal('sellFee') / 100;
+
+            // Basic Units
+            const oldShares = currentLot * 100;
+            const newShares = buyLot * 100;
+            const totalShares = oldShares + newShares;
+            const totalLots = currentLot + buyLot;
+
+            // Calculations
+            // 1. Old Capital (Assumed current Avg Price usually includes historical fees in display)
+            // Value = AvgPrice * Shares
+            const oldTotalVal = currentPrice * oldShares;
+
+            // 2. New Purchase
+            const rawNewBuyVal = buyPrice * newShares;
+            const feeBuyVal = rawNewBuyVal * buyFeePct;
+            const newTotalCost = rawNewBuyVal + feeBuyVal;
+
+            // 3. Combined
+            const totalInvested = oldTotalVal + newTotalCost;
+            
+            // 4. New Average (Gross - what shows in portfolio)
+            // Average Price in portfolio = Total Capital / Total Shares
+            let newAvg = 0;
+            if (totalShares > 0) {
+                newAvg = totalInvested / totalShares;
+            }
+
+            // 5. Break Even Point (Net)
+            // Price needed to sell so that: (Price * Shares) - SellFee = Total Invested
+            // Price * Shares * (1 - SellFeePct) = Total Invested
+            // Price = Total Invested / (Shares * (1 - SellFeePct))
+            let bep = 0;
+            if (totalShares > 0 && sellFeePct < 1) {
+                bep = totalInvested / (totalShares * (1 - sellFeePct));
+            }
+
+            // Gap Analysis
+            let gap = 0;
+            if (buyPrice > 0 && bep > 0) {
+                gap = (bep - buyPrice) / buyPrice;
+            }
+
+            // Update UI
+            document.getElementById('newAvgPrice').innerText = formatNum.format(Math.ceil(newAvg)); // Stock prices usually rounded up
+            document.getElementById('totalLots').innerText = formatNum.format(totalLots);
+            document.getElementById('totalShares').innerText = formatNum.format(totalShares) + " Lembar";
+            document.getElementById('totalInvested').innerText = formatIDR.format(totalInvested);
+            
+            document.getElementById('bepPrice').innerText = formatIDR.format(Math.ceil(bep));
+            
+            // Update Gap
+            const gapElem = document.getElementById('gapPercent');
+            const gapStatus = document.getElementById('gapStatus');
+            
+            // Logic for Gap display relative to New Buy Price (is it averaging up or down?)
+            // If New Avg < Buy Price -> Averaging Up? No, logic depends on context.
+            // Let's show Gap from Current Avg vs BEP
+            
+            let gapFromAvg = 0;
+            if (newAvg > 0) {
+                gapFromAvg = (bep - newAvg) / newAvg; // Usually represents the fee drag
+            }
+            
+            // Let's show margin needed to break even from the NEW Average
+            gapElem.innerText = (gapFromAvg * 100).toFixed(2) + "%";
+            
+            if (gapFromAvg > 0) {
+                gapElem.classList.remove('text-green-600');
+                gapElem.classList.add('text-orange-600');
+                gapStatus.innerText = "Spread Fee";
+                gapStatus.className = "text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-600 font-medium";
+            } else {
+                 gapStatus.innerText = "Netral";
+            }
+
+            // Detail Table
+            document.getElementById('oldCapital').innerText = formatIDR.format(oldTotalVal);
+            document.getElementById('newCapital').innerText = formatIDR.format(newTotalCost);
+            document.getElementById('feeBuyAmount').innerText = formatIDR.format(feeBuyVal);
+            
+            // Helper for funds needed
+            document.getElementById('fundsNeeded').innerText = formatIDR.format(newTotalCost);
+
+            // Progress bar logic (Visual representation of weight)
+            let width = 0;
+            if(totalLots > 0) {
+                width = (buyLot / totalLots) * 100;
+            }
+            document.getElementById('progressBar').style.width = `${width}%`;
+        }
+
+        // Initialize
+        toggleSettings(); // Hide by default
+        calculate();
+    </script>
+</body>
+</html>

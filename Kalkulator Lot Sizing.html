@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Lot Sizing Saham (IDX)</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Google Font (Inter - Sans Serif) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Menggunakan font Inter sebagai default */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Menyembunyikan panah di input number */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        /* Custom Toggle Switch - Menggunakan warna biru */
+        .toggle-checkbox:checked {
+            @apply: bg-sky-600;
+            right: 0;
+            border-color: #0284c7; /* sky-600 */
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            @apply: bg-sky-600;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 antialiased">
+
+    <div class="container mx-auto max-w-6xl p-4 sm:p-8">
+        
+        <!-- Judul Aplikasi -->
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
+                Kalkulator Lot Sizing Saham
+            </h1>
+            <p class="text-lg text-sky-600">Hitung alokasi lot Anda dengan strategi average down (1-3 entri).</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-8">
+
+            <!-- Kolom Input -->
+            <div class="md:col-span-2 bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+                <form id="sizing-form" class="space-y-5">
+                    
+                    <!-- Grup: Parameter Risiko -->
+                    <fieldset class="space-y-4">
+                        <legend class="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">Parameter Risiko</legend>
+                        
+                        <div>
+                            <label for="modalAwal" class="block text-sm font-medium text-gray-700 mb-1">Modal Awal (Rp)</label>
+                            <input type="number" id="modalAwal" value="10000000" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2.5 focus:ring-sky-500 focus:border-sky-500 transition duration-200">
+                        </div>
+                        
+                        <div>
+                            <label for="maxLossPercent" class="block text-sm font-medium text-gray-700 mb-1">Maksimal Risiko per Transaksi (%)</label>
+                            <input type="number" id="maxLossPercent" value="2" step="0.1" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2.5 focus:ring-sky-500 focus:border-sky-500 transition duration-200">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="feeBeliPercent" class="block text-sm font-medium text-gray-700 mb-1">Fee Beli (%)</label>
+                                <input type="number" id="feeBeliPercent" value="0.15" step="0.01" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2.5 focus:ring-sky-500 focus:border-sky-500 transition duration-200">
+                            </div>
+                            <div>
+                                <label for="feeJualPercent" class="block text-sm font-medium text-gray-700 mb-1">Fee Jual (%)</label>
+                                <input type="number" id="feeJualPercent" value="0.25" step="0.01" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2.5 focus:ring-sky-500 focus:border-sky-500 transition duration-200">
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Grup: Parameter Posisi -->
+                    <fieldset class="space-y-4 pt-4">
+                        <legend class="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">Parameter Posisi</legend>
+                        
+                        <div>
+                            <label for="hargaStopLoss" class="block text-sm font-medium text-gray-700 mb-1">Harga Stop Loss (Cut Loss)</label>
+                            <input type="number" id="hargaStopLoss" value="950" class="w-full bg-gray-100 border border-gray-300 text-gray-900 rounded-lg p-2.5 focus:ring-sky-500 focus:border-sky-500 transition duration-200">
+                        </div>
+
+                        <!-- Toggle Average Down -->
+                        <div class="flex items-center justify-between">
+                            <label for="enableAverageDown" class="text-sm font-medium text-gray-700">Gunakan Average Down (2-3 Entri)</label>
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggle" id="enableAverageDown" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                                <label for="enableAverageDown" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                            </div>
+                        </div>
+
+                        <!-- Kontainer Entri -->
+                        <div class="space-y-4">
+                            <!-- Entri 1 (Selalu Tampil) -->
+                            <div class="p-3 bg-gray-100 rounded-lg border border-gray-200">
+                                <label class="block text-sm font-semibold text-sky-600 mb-2">Entri 1</label>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label for="hargaEntry1" class="block text-xs font-medium text-gray-500 mb-1">Harga Entri</label>
+                                        <input type="number" id="hargaEntry1" value="1000" class="w-full bg-white border border-gray-300 text-gray-900 rounded-md p-2 focus:ring-sky-500 focus:border-sky-500">
+                                    </div>
+                                    <div>
+                                        <label for="rasioLot1" class="block text-xs font-medium text-gray-500 mb-1">Rasio Alokasi</label>
+                                        <input type="number" id="rasioLot1" value="1" class="w-full bg-white border border-gray-300 text-gray-900 rounded-md p-2 focus:ring-sky-500 focus:border-sky-500">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Kontainer Average Down (Hidden by default) -->
+                            <div id="averageDownContainer" class="hidden space-y-4">
+                                <!-- Entri 2 -->
+                                <div class="p-3 bg-gray-100 rounded-lg border border-gray-200">
+                                    <label class="block text-sm font-semibold text-sky-600 mb-2">Entri 2</label>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label for="hargaEntry2" class="block text-xs font-medium text-gray-500 mb-1">Harga Entri</label>
+                                            <input type="number" id="hargaEntry2" value="0" class="w-full bg-white border border-gray-300 text-gray-900 rounded-md p-2 focus:ring-sky-500 focus:border-sky-500">
+                                        </div>
+                                        <div>
+                                            <label for="rasioLot2" class="block text-xs font-medium text-gray-500 mb-1">Rasio Alokasi</label>
+                                            <input type="number" id="rasioLot2" value="1" class="w-full bg-white border border-gray-300 text-gray-900 rounded-md p-2 focus:ring-sky-500 focus:border-sky-500">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Entri 3 -->
+                                <div class="p-3 bg-gray-100 rounded-lg border border-gray-200">
+                                    <label class="block text-sm font-semibold text-sky-600 mb-2">Entri 3</label>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label for="hargaEntry3" class="block text-xs font-medium text-gray-500 mb-1">Harga Entri</label>
+                                            <input type="number" id="hargaEntry3" value="0" class="w-full bg-white border border-gray-300 text-gray-900 rounded-md p-2 focus:ring-sky-500 focus:border-sky-500">
+                                        </div>
+                                        <div>
+                                            <label for="rasioLot3" class="block text-xs font-medium text-gray-500 mb-1">Rasio Alokasi</label>
+                                            <input type="number" id="rasioLot3" value="1" class="w-full bg-white border border-gray-300 text-gray-900 rounded-md p-2 focus:ring-sky-500 focus:border-sky-500">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </fieldset>
+
+                    <!-- Tombol Hitung -->
+                    <button type="button" id="calculateButton" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-300 ease-in-out transform hover:-translate-y-0.5">
+                        Hitung Alokasi Lot
+                    </button>
+                </form>
+            </div>
+
+            <!-- Kolom Hasil -->
+            <div class="md:col-span-3 space-y-6">
+                
+                <!-- Pesan Peringatan/Error -->
+                <div id="messageContainer" class="hidden p-4 rounded-lg"></div>
+
+                <!-- Kontainer Hasil (Hidden by default) -->
+                <div id="resultsContainer" class="hidden space-y-6">
+                
+                    <!-- Card Ringkasan -->
+                    <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+                        <h2 class="text-2xl font-semibold text-gray-900 mb-4">Ringkasan Alokasi</h2>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                            <div class="bg-blue-50 p-4 rounded-lg text-center border border-blue-200">
+                                <span class="block text-xs text-gray-500 uppercase">Total Lot</span>
+                                <span id="totalLotsResult" class="text-2xl font-bold text-sky-600">0</span>
+                            </div>
+                            <div class="bg-blue-50 p-4 rounded-lg text-center border border-blue-200">
+                                <span class="block text-xs text-gray-500 uppercase">Total Modal</span>
+                                <span id="totalModalResult" class="text-2xl font-bold text-gray-900">Rp 0</span>
+                            </div>
+                            <div class="bg-blue-50 p-4 rounded-lg text-center border border-blue-200">
+                                <span class="block text-xs text-gray-500 uppercase">Avg. Price</span>
+                                <span id="avgPriceResult" class="text-2xl font-bold text-gray-900">Rp 0</span>
+                            </div>
+                            <div class="bg-blue-50 p-4 rounded-lg text-center col-span-2 sm:col-span-1 border border-blue-200">
+                                <span class="block text-xs text-gray-500 uppercase">Avg. Price (Inc. Fee)</span>
+                                <span id="avgPriceFeeResult" class="text-2xl font-bold text-gray-900">Rp 0</span>
+                            </div>
+                            <div class="bg-red-50 p-4 rounded-lg text-center border border-red-200">
+                                <span class="block text-xs text-gray-500 uppercase">Potensi Rugi</span>
+                                <span id="lossRpResult" class="text-2xl font-bold text-red-600">Rp 0</span>
+                            </div>
+                            <div class="bg-red-50 p-4 rounded-lg text-center border border-red-200">
+                                <span class="block text-xs text-gray-500 uppercase">Rugi dari Modal</span>
+                                <span id="lossPercentResult" class="text-2xl font-bold text-red-600">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card Detail Entri -->
+                    <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+                        <h2 class="text-2xl font-semibold text-gray-900 mb-4">Detail Entri</h2>
+                        <div class="space-y-4">
+                            <!-- Entri 1 -->
+                            <div id="entry1ResultCard" class="p-4 bg-gray-100 rounded-lg flex justify-between items-center border border-gray-200">
+                                <div>
+                                    <span class="text-lg font-semibold text-sky-600">Entri 1</span>
+                                    <span id="entry1Result" class="block text-gray-700 text-sm">0 Lot @ Rp 0</span>
+                                </div>
+                                <span id="entry1Modal" class="text-lg font-medium text-gray-900">Rp 0</span>
+                            </div>
+                            <!-- Entri 2 -->
+                            <div id="entry2ResultCard" class="p-4 bg-gray-100 rounded-lg flex justify-between items-center border border-gray-200">
+                                <div>
+                                    <span class="text-lg font-semibold text-sky-600">Entri 2</span>
+                                    <span id="entry2Result" class="block text-gray-700 text-sm">0 Lot @ Rp 0</span>
+                                </div>
+                                <span id="entry2Modal" class="text-lg font-medium text-gray-900">Rp 0</span>
+                            </div>
+                            <!-- Entri 3 -->
+                            <div id="entry3ResultCard" class="p-4 bg-gray-100 rounded-lg flex justify-between items-center border border-gray-200">
+                                <div>
+                                    <span class="text-lg font-semibold text-sky-600">Entri 3</span>
+                                    <span id="entry3Result" class="block text-gray-700 text-sm">0 Lot @ Rp 0</span>
+                                </div>
+                                <span id="entry3Modal" class="text-lg font-medium text-gray-900">Rp 0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- Elemen DOM ---
+            const $ = (id) => document.getElementById(id);
+            
+            // Input
+            const modalAwalEl = $('modalAwal');
+            const maxLossPercentEl = $('maxLossPercent');
+            const feeBeliPercentEl = $('feeBeliPercent');
+            const feeJualPercentEl = $('feeJualPercent');
+            const hargaStopLossEl = $('hargaStopLoss');
+            const enableAverageDownEl = $('enableAverageDown');
+            const averageDownContainer = $('averageDownContainer');
+            
+            const entryParams = [
+                { price: $('hargaEntry1'), ratio: $('rasioLot1') },
+                { price: $('hargaEntry2'), ratio: $('rasioLot2') },
+                { price: $('hargaEntry3'), ratio: $('rasioLot3') }
+            ];
+
+            // Tombol
+            const calculateButton = $('calculateButton');
+
+            // Output
+            const resultsContainer = $('resultsContainer');
+            const messageContainer = $('messageContainer');
+            
+            const totalLotsResult = $('totalLotsResult');
+            const totalModalResult = $('totalModalResult');
+            const avgPriceResult = $('avgPriceResult');
+            const avgPriceFeeResult = $('avgPriceFeeResult');
+            const lossRpResult = $('lossRpResult');
+            const lossPercentResult = $('lossPercentResult');
+            
+            const entryCards = [
+                { card: $('entry1ResultCard'), text: $('entry1Result'), modal: $('entry1Modal') },
+                { card: $('entry2ResultCard'), text: $('entry2Result'), modal: $('entry2Modal') },
+                { card: $('entry3ResultCard'), text: $('entry3Result'), modal: $('entry3Modal') }
+            ];
+
+            // --- Konstanta ---
+            const IDX_LOT_SIZE = 100; // 1 Lot = 100 Lembar Saham
+
+            // --- Format Helper ---
+            const formatCurrency = (value) => {
+                return new Intl.NumberFormat('id-ID', {
+                    style: 'currency',
+                    currency: 'IDR',
+                    maximumFractionDigits: 0,
+                    minimumFractionDigits: 0,
+                }).format(value);
+            };
+            
+            const formatNumber = (value) => {
+                return new Intl.NumberFormat('id-ID').format(value);
+            };
+            
+            const formatPercent = (value) => {
+                return `${value.toFixed(2)}%`;
+            };
+
+            // --- Event Listeners ---
+            enableAverageDownEl.addEventListener('change', () => {
+                averageDownContainer.classList.toggle('hidden', !enableAverageDownEl.checked);
+            });
+
+            calculateButton.addEventListener('click', calculateSizing);
+
+            // --- Fungsi Tampil Pesan ---
+            function showMessage(type, message) {
+                messageContainer.classList.remove('hidden', 'bg-red-50', 'text-red-700', 'bg-yellow-50', 'text-yellow-700');
+                messageContainer.classList.add('border', 'border-gray-200');
+                if (type === 'error') {
+                    messageContainer.classList.add('bg-red-50', 'text-red-700', 'border-red-300');
+                    resultsContainer.classList.add('hidden');
+                } else if (type === 'warning') {
+                    messageContainer.classList.add('bg-yellow-50', 'text-yellow-700', 'border-yellow-300');
+                } else {
+                    messageContainer.classList.add('hidden');
+                    return;
+                }
+                messageContainer.textContent = message;
+            }
+
+            // --- Fungsi Kalkulasi Utama ---
+            function calculateSizing() {
+                // 1. Ambil dan parse semua nilai input
+                const modalAwal = parseFloat(modalAwalEl.value) || 0;
+                const maxLossPercent = parseFloat(maxLossPercentEl.value) || 0;
+                const feeBeli = (parseFloat(feeBeliPercentEl.value) || 0) / 100;
+                const feeJual = (parseFloat(feeJualPercentEl.value) || 0) / 100;
+                const hargaSL = parseFloat(hargaStopLossEl.value) || 0;
+                const useAverageDown = enableAverageDownEl.checked;
+
+                const entries = [
+                    {
+                        price: parseFloat(entryParams[0].price.value) || 0,
+                        ratio: parseFloat(entryParams[0].ratio.value) || 0
+                    },
+                    {
+                        price: useAverageDown ? (parseFloat(entryParams[1].price.value) || 0) : 0,
+                        ratio: useAverageDown ? (parseFloat(entryParams[1].ratio.value) || 0) : 0
+                    },
+                    {
+                        price: useAverageDown ? (parseFloat(entryParams[2].price.value) || 0) : 0,
+                        ratio: useAverageDown ? (parseFloat(entryParams[2].ratio.value) || 0) : 0
+                    }
+                ];
+
+                // 2. Validasi Input Dasar
+                if (modalAwal <= 0 || maxLossPercent <= 0) {
+                    showMessage('error', 'Modal Awal dan Maksimal Risiko (%) harus lebih dari 0.');
+                    return;
+                }
+                if (hargaSL <= 0) {
+                    showMessage('error', 'Harga Stop Loss harus lebih dari 0.');
+                    return;
+                }
+                if (entries[0].price <= 0 || entries[0].ratio <= 0) {
+                    showMessage('error', 'Entri 1 (Harga dan Rasio) harus lebih dari 0.');
+                    return;
+                }
+                if (entries.some(e => e.price > 0 && e.price <= hargaSL)) {
+                    showMessage('error', 'Harga Entri harus lebih tinggi dari Harga Stop Loss.');
+                    return;
+                }
+                
+                // 3. Hitung Risiko
+                const maxLossRp = modalAwal * (maxLossPercent / 100);
+                
+                let totalRiskWeight = 0;
+                const riskPerShare = [];
+
+                for (const entry of entries) {
+                    let rps = 0;
+                    if (entry.price > 0 && entry.ratio > 0) {
+                        // Risiko per lembar = (Selisih Harga) + (Fee Beli) + (Fee Jual)
+                        const priceDiff = entry.price - hargaSL;
+                        const feeBuyAmount = entry.price * feeBeli;
+                        const feeSellAmount = hargaSL * feeJual;
+                        rps = priceDiff + feeBuyAmount + feeSellAmount;
+                        
+                        riskPerShare.push(rps);
+                        totalRiskWeight += entry.ratio * rps;
+                    } else {
+                        riskPerShare.push(0);
+                    }
+                }
+
+                if (totalRiskWeight <= 0) {
+                    showMessage('error', 'Gagal menghitung bobot risiko. Periksa harga entri dan rasio.');
+                    return;
+                }
+
+                // 4. Hitung Alokasi Saham & Lot
+                // X = jumlah saham per 1 unit rasio
+                const X_shares_per_ratio = maxLossRp / totalRiskWeight;
+                
+                let totalLots = 0;
+                let totalModal = 0;
+                let totalShares = 0;
+                const finalAllotment = [];
+
+                for (let i = 0; i < entries.length; i++) {
+                    if (entries[i].price > 0 && entries[i].ratio > 0) {
+                        const calculatedShares = X_shares_per_ratio * entries[i].ratio;
+                        const lots = Math.floor(calculatedShares / IDX_LOT_SIZE);
+                        const realShares = lots * IDX_LOT_SIZE;
+                        const modal = realShares * entries[i].price;
+                        
+                        totalLots += lots;
+                        totalShares += realShares;
+                        totalModal += modal;
+
+                        finalAllotment.push({
+                            lots: lots,
+                            shares: realShares,
+                            price: entries[i].price,
+                            modal: modal
+                        });
+                    } else {
+                        finalAllotment.push({ lots: 0, shares: 0, price: 0, modal: 0 });
+                    }
+                }
+
+                // 5. Cek Peringatan Modal
+                let warningMsg = null;
+                if (totalModal > modalAwal) {
+                    warningMsg = `Peringatan: Total modal yang dibutuhkan (${formatCurrency(totalModal)}) melebihi Modal Awal Anda (${formatCurrency(modalAwal)}).`;
+                }
+
+                // 6. Hitung Statistik Akhir
+                if (totalShares === 0) {
+                    showMessage('error', 'Tidak ada lot yang bisa dialokasikan dengan parameter ini. Coba naikkan risiko atau periksa harga.');
+                    return;
+                }
+                
+                const avgPrice = totalModal / totalShares;
+                
+                // Hitung total biaya (termasuk fee)
+                const totalBuyFee = totalModal * feeBeli;
+                const totalModalIncFee = totalModal + totalBuyFee;
+                const avgPriceIncFee = totalModalIncFee / totalShares;
+
+                // Hitung potensi kerugian
+                const sellValue = totalShares * hargaSL;
+                const sellFee = sellValue * feeJual;
+                const proceeds = sellValue - sellFee;
+                
+                const finalLossRp = totalModalIncFee - proceeds;
+                const finalLossPercent = (finalLossRp / modalAwal) * 100;
+
+                // 7. Tampilkan Hasil
+                showMessage(warningMsg ? 'warning' : 'success', warningMsg);
+                resultsContainer.classList.remove('hidden');
+
+                // Update Card Ringkasan
+                totalLotsResult.textContent = formatNumber(totalLots);
+                totalModalResult.textContent = formatCurrency(totalModal);
+                avgPriceResult.textContent = formatCurrency(avgPrice);
+                avgPriceFeeResult.textContent = formatCurrency(avgPriceIncFee);
+                lossRpResult.textContent = formatCurrency(finalLossRp);
+                lossPercentResult.textContent = formatPercent(finalLossPercent);
+
+                // Update Card Detail Entri
+                for (let i = 0; i < finalAllotment.length; i++) {
+                    const entry = finalAllotment[i];
+                    const card = entryCards[i];
+                    
+                    if (entry.lots > 0) {
+                        card.card.classList.remove('hidden');
+                        card.text.textContent = `${formatNumber(entry.lots)} Lot @ ${formatCurrency(entry.price)}`;
+                        card.modal.textContent = formatCurrency(entry.modal);
+                    } else {
+                        card.card.classList.add('hidden');
+                    }
+                }
+            }
+
+            // Panggil hitung saat halaman dimuat untuk inisialisasi dengan nilai default
+            calculateSizing();
+        });
+    </script>
+</body>
+</html>
